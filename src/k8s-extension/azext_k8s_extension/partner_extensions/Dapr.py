@@ -5,9 +5,9 @@
 
 # pylint: disable=unused-argument
 # pylint: disable=too-many-locals
+# pylint: disable=too-many-instance-attributes
 
 from azure.cli.core.azclierror import InvalidArgumentValueError
-from azure.cli.core.commands import AzCliCommand
 from knack.log import get_logger
 from knack.prompting import prompt_y_n, prompt
 
@@ -31,28 +31,40 @@ class Dapr(DefaultExtension):
 
         # constants for configuration settings.
         self.CLUSTER_TYPE_KEY = 'global.clusterType'
+        self.HA_KEY = 'global.ha.enabled'
 
         # constants for message prompts.
         self.MSG_IS_DAPR_INSTALLED = "Is Dapr already installed in the cluster?"
-        self.MSG_ENTER_RELEASE_NAME = "Enter the Helm release name for Dapr, "
-        f"or press Enter to use the default name [{self.DEFAULT_RELEASE_NAME}]: "
-        self.MSG_ENTER_RELEASE_NAMESPACE = "Enter the namespace where Dapr is installed, "
-        f"or press Enter to use the default namespace [{self.DEFAULT_RELEASE_NAMESPACE}]: "
+        self.MSG_ENTER_RELEASE_NAME = "Enter the Helm release name for Dapr, "\
+            f"or press Enter to use the default name [{self.DEFAULT_RELEASE_NAME}]: "
+        self.MSG_ENTER_RELEASE_NAMESPACE = "Enter the namespace where Dapr is installed, "\
+            f"or press Enter to use the default namespace [{self.DEFAULT_RELEASE_NAMESPACE}]: "
         self.RELEASE_INFO_HELP_STRING = "The Helm release name and namespace can be found by running 'helm list -A'."
 
         # constants for error messages.
-        self.ERR_MSG_INVALID_SCOPE_TPL = "Invalid scope '{}'. This extension can be installed only at 'cluster' scope. "
-        f"Check {self.TSG_LINK} for more information."
+        self.ERR_MSG_INVALID_SCOPE_TPL = "Invalid scope '{}'. This extension can be installed only at 'cluster' scope."\
+            f" Check {self.TSG_LINK} for more information."
 
     def _get_release_info(self, release_name, release_namespace):
         # Check with the user if Dapr is already installed in the cluster.
         # If yes, then use the same release name and namespace.
 
-        name, namespace = release_name, release_namespace
+        name, namespace, disable_ha = release_name, release_namespace, False
 
         if prompt_y_n(self.MSG_IS_DAPR_INSTALLED, default='n'):
+            # If Dapr is already installed, then the extension cannot be installed in HA mode.
+            # This is because in the HA mode, the placement service adds Raft for leader election.
+            # However, Kubernetes only allows for limited fields in stateful sets to be patched,
+            # subsequently failing upgrade of the placement service.
+            disable_ha = True
+
             name = prompt(self.MSG_ENTER_RELEASE_NAME, self.RELEASE_INFO_HELP_STRING)
+            if release_name and name != release_name:
+                logger.warning("The release name has been changed from '%s' to '%s'.", release_name, name)
+
             namespace = prompt(self.MSG_ENTER_RELEASE_NAMESPACE, self.RELEASE_INFO_HELP_STRING)
+            if release_namespace and namespace != release_namespace:
+                logger.warning("The release namespace has been changed from '%s' to '%s'.", release_namespace, namespace)
 
         if not name:
             logger.info("Using default release name '%s'.", self.DEFAULT_RELEASE_NAME)
@@ -62,7 +74,7 @@ class Dapr(DefaultExtension):
             logger.info("Using default release namespace '%s'.", self.DEFAULT_RELEASE_NAMESPACE)
             namespace = self.DEFAULT_RELEASE_NAMESPACE
 
-        return name, namespace
+        return name, namespace, disable_ha
 
     def Create(self, cmd, client, resource_group_name, cluster_name, name, cluster_type, cluster_rp,
                extension_type, scope, auto_upgrade_minor_version, release_train, version, target_namespace,
@@ -76,7 +88,11 @@ class Dapr(DefaultExtension):
         if scope == 'namespace':
             raise InvalidArgumentValueError(self.ERR_MSG_INVALID_SCOPE_TPL.format(scope))
 
-        release_name, release_namespace = self._get_release_info(name, release_namespace)
+        release_name, release_namespace, disable_ha = self._get_release_info(name, release_namespace)
+        if disable_ha and configuration_settings[self.HA_KEY] == 'true':
+            logger.warning("Automatic Dapr migration is unsupported with HA mode, disabling it"
+                           ". Please see %s for more information.", self.TSG_LINK)
+            configuration_settings[self.HA_KEY] = 'false'
 
         scope_cluster = ScopeCluster(release_namespace=release_namespace or self.DEFAULT_RELEASE_NAMESPACE)
         extension_scope = Scope(cluster=scope_cluster, namespace=None)
