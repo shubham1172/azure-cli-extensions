@@ -47,7 +47,7 @@ class Dapr(DefaultExtension):
             f" Check {self.TSG_LINK} for more information."
 
     def _get_release_info(self, release_name, release_namespace):
-        name, namespace, disable_ha = release_name, release_namespace, False
+        name, namespace, is_upgrade = release_name, release_namespace, False
 
         # Set the default release name and namespace if not provided.
         name = name or self.DEFAULT_RELEASE_NAME
@@ -56,11 +56,7 @@ class Dapr(DefaultExtension):
         # Check if Dapr is already installed in the cluster.
         # If so, reuse the release name and namespace to avoid conflicts.
         if prompt_y_n(self.MSG_IS_DAPR_INSTALLED, default='n'):
-            # If Dapr is already installed, then the extension cannot be installed in HA mode.
-            # This is because in the HA mode, the placement service adds Raft for leader election.
-            # However, Kubernetes only allows for limited fields in stateful sets to be patched,
-            # subsequently failing upgrade of the placement service.
-            disable_ha = True
+            is_upgrade = True
 
             name = prompt(self.MSG_ENTER_RELEASE_NAME, self.RELEASE_INFO_HELP_STRING) or self.DEFAULT_RELEASE_NAME
             if release_name and name != release_name:
@@ -71,7 +67,7 @@ class Dapr(DefaultExtension):
             if release_namespace and namespace != release_namespace:
                 logger.warning("The release namespace has been changed from '%s' to '%s'.", release_namespace, namespace)
 
-        return name, namespace, disable_ha
+        return name, namespace, is_upgrade
 
     def Create(self, cmd, client, resource_group_name, cluster_name, name, cluster_type, cluster_rp,
                extension_type, scope, auto_upgrade_minor_version, release_train, version, target_namespace,
@@ -85,13 +81,20 @@ class Dapr(DefaultExtension):
         if scope == 'namespace':
             raise InvalidArgumentValueError(self.ERR_MSG_INVALID_SCOPE_TPL.format(scope))
 
-        release_name, release_namespace, disable_ha = self._get_release_info(name, release_namespace)
+        release_name, release_namespace, is_upgrade = self._get_release_info(name, release_namespace)
 
-        if disable_ha:
+        # If Dapr is already installed, then the extension cannot be installed in HA mode.
+        # This is because in the HA mode, the placement service adds Raft for leader election.
+        # However, Kubernetes only allows for limited fields in stateful sets to be patched,
+        # subsequently failing upgrade of the placement service.
+        # Similarly, the placement configuration cannot be changed.
+        if is_upgrade:
             if configuration_settings.get(self.HA_KEY, self.DEFAULT_HA) == 'true':
                 logger.warning("Automatic Dapr migration is unsupported with HA mode, disabling it"
                                ". Please see %s for more information.", self.TSG_LINK)
             configuration_settings[self.HA_KEY] = 'false'
+
+            # TODO: remove placement service configuration overrides if any.
 
         scope_cluster = ScopeCluster(release_namespace=release_namespace or self.DEFAULT_RELEASE_NAMESPACE)
         extension_scope = Scope(cluster=scope_cluster, namespace=None)
