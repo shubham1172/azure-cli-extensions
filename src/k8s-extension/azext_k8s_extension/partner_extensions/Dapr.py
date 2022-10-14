@@ -28,6 +28,7 @@ class Dapr(DefaultExtension):
         self.DEFAULT_RELEASE_NAMESPACE = 'dapr-system'
         self.DEFAULT_RELEASE_TRAIN = 'stable'
         self.DEFAULT_CLUSTER_TYPE = 'managedclusters'
+        self.DEFAULT_HA = 'true'
 
         # constants for configuration settings.
         self.CLUSTER_TYPE_KEY = 'global.clusterType'
@@ -74,7 +75,7 @@ class Dapr(DefaultExtension):
 
     def Create(self, cmd, client, resource_group_name, cluster_name, name, cluster_type, cluster_rp,
                extension_type, scope, auto_upgrade_minor_version, release_train, version, target_namespace,
-               release_namespace, configuration_settings, configuration_protected_settings,
+               release_namespace, configuration_settings: dict, configuration_protected_settings,
                configuration_settings_file, configuration_protected_settings_file):
         """ExtensionType 'Microsoft.Dapr' specific validations & defaults for Create
            Must create and return a valid 'ExtensionInstance' object.
@@ -85,9 +86,11 @@ class Dapr(DefaultExtension):
             raise InvalidArgumentValueError(self.ERR_MSG_INVALID_SCOPE_TPL.format(scope))
 
         release_name, release_namespace, disable_ha = self._get_release_info(name, release_namespace)
-        if disable_ha and configuration_settings[self.HA_KEY] == 'true':
-            logger.warning("Automatic Dapr migration is unsupported with HA mode, disabling it"
-                           ". Please see %s for more information.", self.TSG_LINK)
+
+        if disable_ha:
+            if configuration_settings.get(self.HA_KEY, self.DEFAULT_HA) == 'true':
+                logger.warning("Automatic Dapr migration is unsupported with HA mode, disabling it"
+                               ". Please see %s for more information.", self.TSG_LINK)
             configuration_settings[self.HA_KEY] = 'false'
 
         scope_cluster = ScopeCluster(release_namespace=release_namespace or self.DEFAULT_RELEASE_NAMESPACE)
