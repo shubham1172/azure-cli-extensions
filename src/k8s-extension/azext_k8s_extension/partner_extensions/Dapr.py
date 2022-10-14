@@ -46,11 +46,14 @@ class Dapr(DefaultExtension):
             f" Check {self.TSG_LINK} for more information."
 
     def _get_release_info(self, release_name, release_namespace):
-        # Check with the user if Dapr is already installed in the cluster.
-        # If yes, then use the same release name and namespace.
-
         name, namespace, disable_ha = release_name, release_namespace, False
 
+        # Set the default release name and namespace if not provided.
+        name = name or self.DEFAULT_RELEASE_NAME
+        namespace = namespace or self.DEFAULT_RELEASE_NAMESPACE
+
+        # Check if Dapr is already installed in the cluster.
+        # If so, reuse the release name and namespace to avoid conflicts.
         if prompt_y_n(self.MSG_IS_DAPR_INSTALLED, default='n'):
             # If Dapr is already installed, then the extension cannot be installed in HA mode.
             # This is because in the HA mode, the placement service adds Raft for leader election.
@@ -58,21 +61,14 @@ class Dapr(DefaultExtension):
             # subsequently failing upgrade of the placement service.
             disable_ha = True
 
-            name = prompt(self.MSG_ENTER_RELEASE_NAME, self.RELEASE_INFO_HELP_STRING)
+            name = prompt(self.MSG_ENTER_RELEASE_NAME, self.RELEASE_INFO_HELP_STRING) or self.DEFAULT_RELEASE_NAME
             if release_name and name != release_name:
                 logger.warning("The release name has been changed from '%s' to '%s'.", release_name, name)
 
-            namespace = prompt(self.MSG_ENTER_RELEASE_NAMESPACE, self.RELEASE_INFO_HELP_STRING)
+            namespace = prompt(self.MSG_ENTER_RELEASE_NAMESPACE, self.RELEASE_INFO_HELP_STRING)\
+                or self.DEFAULT_RELEASE_NAMESPACE
             if release_namespace and namespace != release_namespace:
                 logger.warning("The release namespace has been changed from '%s' to '%s'.", release_namespace, namespace)
-
-        if not name:
-            logger.info("Using default release name '%s'.", self.DEFAULT_RELEASE_NAME)
-            name = self.DEFAULT_RELEASE_NAME
-
-        if not namespace:
-            logger.info("Using default release namespace '%s'.", self.DEFAULT_RELEASE_NAMESPACE)
-            namespace = self.DEFAULT_RELEASE_NAMESPACE
 
         return name, namespace, disable_ha
 
