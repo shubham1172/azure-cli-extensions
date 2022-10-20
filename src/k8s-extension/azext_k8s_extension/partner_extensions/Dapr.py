@@ -53,7 +53,7 @@ class Dapr(DefaultExtension):
 
     def Update(self, cmd, resource_group_name: str, cluster_name: str, auto_upgrade_minor_version: bool,
                release_train: str, version: str, configuration_settings: dict,
-               configuration_protected_settings: dict, original_extension: Extension, yes: bool) \
+               configuration_protected_settings: dict, original_extension: Extension, yes: bool = False) \
             -> PatchExtension:
 
         input_configuration_settings = copy.deepcopy(configuration_settings)
