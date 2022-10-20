@@ -66,8 +66,9 @@ class Dapr(DefaultExtension):
         # This is because CRD updates while downgrading can cause issues.
         original_version = original_extension.version
         if original_version and version and version < original_version:
+            logger.debug("Downgrade detected from %s to %s. Setting hooks.applyCrds to false.",
+                         original_version, version)
             configuration_settings['hooks.applyCrds'] = 'false'
-            logger.debug("Downgrade detected. Setting hooks.applyCrds to false.")
 
         # If no changes were made, return the original dict (empty or None).
         if len(configuration_settings) == 0:
