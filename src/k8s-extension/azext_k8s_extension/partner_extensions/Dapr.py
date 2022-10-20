@@ -70,11 +70,10 @@ class Dapr(DefaultExtension):
                          original_version, version)
             configuration_settings['hooks.applyCrds'] = 'false'
         else:
-            # If we are not downgrading, remove the hooks.applyCrds setting if it exists from a previous downgrade.
-            if original_extension.configuration_settings and \
-                    'hooks.applyCrds' in original_extension.configuration_settings:
-                logger.debug("Removing hooks.applyCrds from original_extension.configuration_settings.")
-                del original_extension.configuration_settings['hooks.applyCrds']
+            # If we are not downgrading, set the hooks.applyCrds to true.
+            # This is because the value may have been set to false during a previous downgrade.
+            logger.debug("No downgrade detected. Setting hooks.applyCrds to true.")
+            configuration_settings['hooks.applyCrds'] = 'true'
 
         # If no changes were made, return the original dict (empty or None).
         if len(configuration_settings) == 0:
