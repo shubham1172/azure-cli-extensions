@@ -55,7 +55,7 @@ class Dapr(DefaultExtension):
         name, namespace, dapr_exists = release_name, release_namespace, False
 
         if configuration_settings.get(self.SKIP_EXISTING_DAPR_CHECK_KEY, 'false') == 'true':
-            logger.debug(f"{self.SKIP_EXISTING_DAPR_CHECK_KEY} is set to true. Skipping existing Dapr check.")
+            logger.debug("%s is set to true. Skipping existing Dapr check.", self.SKIP_EXISTING_DAPR_CHECK_KEY)
             return name, namespace, dapr_exists
 
         # If the user has specified the release name and namespace in configuration settings, then use it.
@@ -103,7 +103,8 @@ class Dapr(DefaultExtension):
         if scope == 'namespace':
             raise InvalidArgumentValueError(self.ERR_MSG_INVALID_SCOPE_TPL.format(scope))
 
-        release_name, release_namespace, dapr_exists = self._get_release_info(name, release_namespace, configuration_settings)
+        release_name, release_namespace, dapr_exists = \
+            self._get_release_info(name, release_namespace, configuration_settings)
 
         # If Dapr is already installed, then the extension cannot be installed in HA mode.
         # This is because in the HA mode, the placement service adds Raft for leader election.
