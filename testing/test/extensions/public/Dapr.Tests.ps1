@@ -9,7 +9,7 @@ Describe 'DAPR Testing' {
     }
 
     It 'Creates the extension and checks that it onboards correctly' {
-        $output = az $Env:K8sExtensionName create -c $($ENVCONFIG.arcClusterName) -g $($ENVCONFIG.resourceGroup) --cluster-type $clusterType -n $extensionName --extension-type $extensionType --no-wait --configuration-settings "skipExistingDaprCheck=true"
+        $output = az $Env:K8sExtensionName create -c $($ENVCONFIG.arcClusterName) -g $($ENVCONFIG.resourceGroup) --cluster-type $clusterType -n $extensionName --extension-type $extensionType --configuration-settings "skipExistingDaprCheck=true" --no-wait
         $? | Should -BeTrue
 
         $n = 0
