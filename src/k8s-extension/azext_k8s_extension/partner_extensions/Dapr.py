@@ -8,16 +8,13 @@
 # pylint: disable=too-many-instance-attributes
 
 from typing import Dict, Tuple
+
 from azure.cli.core.azclierror import InvalidArgumentValueError
 from knack.log import get_logger
-from knack.prompting import prompt_y_n, prompt
+from knack.prompting import prompt, prompt_y_n
 
+from ..vendored_sdks.models import Extension, Scope, ScopeCluster
 from .DefaultExtension import DefaultExtension
-from ..vendored_sdks.models import (
-    Extension,
-    Scope,
-    ScopeCluster
-)
 
 logger = get_logger(__name__)
 
@@ -79,7 +76,9 @@ class Dapr(DefaultExtension):
             logger.debug("Using the release name and namespace specified in the configuration settings.")
 
             return name, namespace, dapr_exists
-        elif configuration_settings.get(self.EXISTING_DAPR_RELEASE_NAME_KEY, None) or \
+
+        # If either release name and namespace is missing, ignore the configuration settings and prompt the user.
+        if configuration_settings.get(self.EXISTING_DAPR_RELEASE_NAME_KEY, None) or \
                 configuration_settings.get(self.EXISTING_DAPR_RELEASE_NAMESPACE_KEY, None):
             logger.warning("Both '%s' and '%s' must be specified in the configuration settings. Only one of them is "
                            "specified, ignoring.", self.EXISTING_DAPR_RELEASE_NAME_KEY,
@@ -133,7 +132,7 @@ class Dapr(DefaultExtension):
         # Reset some configuration settings for the extension if Dapr is already installed in the cluster.
         if dapr_exists:
             logger.info("The extension will be installed on your existing Dapr installation. "
-                        f"Please refer to {self.TSG_LINK} for more information.")
+                        "Please refer to %s for more information.", self.TSG_LINK)
             configuration_settings = self._reset_configuration_settings_for_existing_dapr(configuration_settings)
 
         scope_cluster = ScopeCluster(release_namespace=release_namespace or self.DEFAULT_RELEASE_NAMESPACE)
