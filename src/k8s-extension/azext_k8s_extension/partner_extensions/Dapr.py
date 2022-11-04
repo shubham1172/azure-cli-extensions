@@ -7,7 +7,7 @@
 # pylint: disable=too-many-locals
 # pylint: disable=too-many-instance-attributes
 
-from typing import Dict, Tuple
+from typing import Tuple
 
 from azure.cli.core.azclierror import InvalidArgumentValueError
 from knack.log import get_logger
@@ -30,8 +30,7 @@ class Dapr(DefaultExtension):
 
         # constants for configuration settings.
         self.CLUSTER_TYPE_KEY = 'global.clusterType'
-        self.HA_KEY_PREFIX = 'global.ha.'
-        self.PLACEMENT_KEY_PREFIX = 'dapr_placement.'
+        self.HA_KEY_ENABLED_KEY = 'global.ha.enabled'
         self.SKIP_EXISTING_DAPR_CHECK_KEY = 'skipExistingDaprCheck'
         self.EXISTING_DAPR_RELEASE_NAME_KEY = 'existingDaprReleaseName'
         self.EXISTING_DAPR_RELEASE_NAMESPACE_KEY = 'existingDaprReleaseNamespace'
@@ -42,6 +41,12 @@ class Dapr(DefaultExtension):
             f"or press Enter to use the default name [{self.DEFAULT_RELEASE_NAME}]: "
         self.MSG_ENTER_RELEASE_NAMESPACE = "Enter the namespace where Dapr is installed, "\
             f"or press Enter to use the default namespace [{self.DEFAULT_RELEASE_NAMESPACE}]: "
+        self.MSG_WARN_EXISTING_INSTALLATION = "The extension will be installed on your existing Dapr installation. "\
+            f"Please refer to {self.TSG_LINK} for more information.\nNote, if you have updated the default values for"\
+            " global.ha.* or dapr_placement.* in your existing Dapr installation, you must provide them in the"\
+            " configuration settings. Failing to do so will result in an error, since Helm upgrade will try to modify"\
+            f" the StatefulSet. See {self.TSG_LINK} for more information."
+
         self.RELEASE_INFO_HELP_STRING = "The Helm release name and namespace can be found by running 'helm list -A'."
 
         # constants for error messages.
@@ -63,23 +68,19 @@ class Dapr(DefaultExtension):
         namespace = namespace or self.DEFAULT_RELEASE_NAMESPACE
 
         if configuration_settings.get(self.SKIP_EXISTING_DAPR_CHECK_KEY, 'false') == 'true':
-            logger.debug("%s is set to true, skipping existing Dapr check.", self.SKIP_EXISTING_DAPR_CHECK_KEY)
-            return name, namespace, dapr_exists
+            logger.info("%s is set to true, skipping existing Dapr check.", self.SKIP_EXISTING_DAPR_CHECK_KEY)
+            return name, namespace, False
+
+        cfg_name = configuration_settings.get(self.EXISTING_DAPR_RELEASE_NAME_KEY, None)
+        cfg_namespace = configuration_settings.get(self.EXISTING_DAPR_RELEASE_NAMESPACE_KEY, None)
 
         # If the user has specified the release name and namespace in configuration settings, then use it.
-        if configuration_settings.get(self.EXISTING_DAPR_RELEASE_NAME_KEY, None) and \
-                configuration_settings.get(self.EXISTING_DAPR_RELEASE_NAMESPACE_KEY, None):
-            name = configuration_settings[self.EXISTING_DAPR_RELEASE_NAME_KEY]
-            namespace = configuration_settings[self.EXISTING_DAPR_RELEASE_NAMESPACE_KEY]
-            dapr_exists = True
+        if cfg_name and cfg_namespace:
+            logger.info("Using the release name and namespace specified in the configuration settings.")
+            return cfg_name, cfg_namespace, True
 
-            logger.debug("Using the release name and namespace specified in the configuration settings.")
-
-            return name, namespace, dapr_exists
-
-        # If either release name and namespace is missing, ignore the configuration settings and prompt the user.
-        if configuration_settings.get(self.EXISTING_DAPR_RELEASE_NAME_KEY, None) or \
-                configuration_settings.get(self.EXISTING_DAPR_RELEASE_NAMESPACE_KEY, None):
+        # If either release name or namespace is missing, ignore the configuration settings and prompt the user.
+        if cfg_name or cfg_namespace:
             logger.warning("Both '%s' and '%s' must be specified in the configuration settings. Only one of them is "
                            "specified, ignoring.", self.EXISTING_DAPR_RELEASE_NAME_KEY,
                            self.EXISTING_DAPR_RELEASE_NAMESPACE_KEY)
@@ -91,26 +92,15 @@ class Dapr(DefaultExtension):
 
             name = prompt(self.MSG_ENTER_RELEASE_NAME, self.RELEASE_INFO_HELP_STRING) or self.DEFAULT_RELEASE_NAME
             if release_name and name != release_name:
-                logger.info("The release name has been changed from '%s' to '%s'.", release_name, name)
+                logger.warning("The release name has been changed from '%s' to '%s'.", release_name, name)
 
             namespace = prompt(self.MSG_ENTER_RELEASE_NAMESPACE, self.RELEASE_INFO_HELP_STRING)\
                 or self.DEFAULT_RELEASE_NAMESPACE
             if release_namespace and namespace != release_namespace:
-                logger.info("The release namespace has been changed from '%s' to '%s'.", release_namespace, namespace)
+                logger.warning("The release namespace has been changed from '%s' to '%s'.",
+                               release_namespace, namespace)
 
         return name, namespace, dapr_exists
-
-    def _reset_configuration_settings_for_existing_dapr(self, configuration_settings: dict) -> Dict:
-        '''
-        Reset some configuration settings for the extension if Dapr is already installed in the cluster.
-        This is required because some settings modify the StatefulSet and is unsupported by K8s.
-        '''
-        for key in configuration_settings.keys():
-            if key.startswith(self.HA_KEY_PREFIX) or key.startswith(self.PLACEMENT_KEY_PREFIX):
-                logger.warning("The configuration setting '%s' will be ignored as Dapr is already installed, "
-                               "please refer to %s for more information.", key, self.TSG_LINK)
-                del configuration_settings[key]
-        return configuration_settings
 
     def Create(self, cmd, client, resource_group_name: str, cluster_name: str, name: str, cluster_type: str,
                cluster_rp: str, extension_type: str, scope: str, auto_upgrade_minor_version: bool,
@@ -129,11 +119,11 @@ class Dapr(DefaultExtension):
             self._get_release_info(name, release_namespace, configuration_settings)
 
         # Inform the user that the extension will be installed on an existing Dapr installation.
-        # Reset some configuration settings for the extension if Dapr is already installed in the cluster.
+        # Disable HA mode if Dapr is already installed in the cluster.
         if dapr_exists:
-            logger.info("The extension will be installed on your existing Dapr installation. "
-                        "Please refer to %s for more information.", self.TSG_LINK)
-            configuration_settings = self._reset_configuration_settings_for_existing_dapr(configuration_settings)
+            logger.warning(self.MSG_WARN_EXISTING_INSTALLATION)
+            if self.HA_KEY_ENABLED_KEY not in configuration_settings:
+                configuration_settings[self.HA_KEY_ENABLED_KEY] = 'false'
 
         scope_cluster = ScopeCluster(release_namespace=release_namespace or self.DEFAULT_RELEASE_NAMESPACE)
         extension_scope = Scope(cluster=scope_cluster, namespace=None)
