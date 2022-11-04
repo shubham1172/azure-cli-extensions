@@ -42,10 +42,10 @@ class Dapr(DefaultExtension):
         self.MSG_ENTER_RELEASE_NAMESPACE = "Enter the namespace where Dapr is installed, "\
             f"or press Enter to use the default namespace [{self.DEFAULT_RELEASE_NAMESPACE}]: "
         self.MSG_WARN_EXISTING_INSTALLATION = "The extension will be installed on your existing Dapr installation. "\
-            f"Please refer to {self.TSG_LINK} for more information.\nNote, if you have updated the default values for"\
-            " global.ha.* or dapr_placement.* in your existing Dapr installation, you must provide them in the"\
-            " configuration settings. Failing to do so will result in an error, since Helm upgrade will try to modify"\
-            f" the StatefulSet. See {self.TSG_LINK} for more information."
+            f"Note, if you have updated the default values for global.ha.* or dapr_placement.* in your existing "\
+            "Dapr installation, you must provide them in the configuration settings. Failing to do so will result in"\
+            "an error, since Helm upgrade will try to modify the StatefulSet."\
+            f"Please refer to {self.TSG_LINK} for more information."
 
         self.RELEASE_INFO_HELP_STRING = "The Helm release name and namespace can be found by running 'helm list -A'."
 
