@@ -41,9 +41,9 @@ class Dapr(DefaultExtension):
             f"or press Enter to use the default name [{self.DEFAULT_RELEASE_NAME}]: "
         self.MSG_ENTER_RELEASE_NAMESPACE = "Enter the namespace where Dapr is installed, "\
             f"or press Enter to use the default namespace [{self.DEFAULT_RELEASE_NAMESPACE}]: "
-        self.MSG_WARN_EXISTING_INSTALLATION = "The extension will be installed on your existing Dapr installation. "\
+        self.MSG_WARN_EXISTING_INSTALLATION = "The extension will use your existing Dapr installation. "\
             f"Note, if you have updated the default values for global.ha.* or dapr_placement.* in your existing "\
-            "Dapr installation, you must provide them in the configuration settings. Failing to do so will result in"\
+            "Dapr installation, you must provide them via --configuration-settings. Failing to do so will result in"\
             "an error, since Helm upgrade will try to modify the StatefulSet."\
             f"Please refer to {self.TSG_LINK} for more information."
 
@@ -81,7 +81,7 @@ class Dapr(DefaultExtension):
 
         # If either release name or namespace is missing, ignore the configuration settings and prompt the user.
         if cfg_name or cfg_namespace:
-            logger.warning("Both '%s' and '%s' must be specified in the configuration settings. Only one of them is "
+            logger.warning("Both '%s' and '%s' must be specified via --configuration-settings. Only one of them is "
                            "specified, ignoring.", self.EXISTING_DAPR_RELEASE_NAME_KEY,
                            self.EXISTING_DAPR_RELEASE_NAMESPACE_KEY)
 
