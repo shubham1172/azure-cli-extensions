@@ -32,6 +32,7 @@ class Dapr(DefaultExtension):
         # constants for configuration settings.
         self.CLUSTER_TYPE_KEY = 'global.clusterType'
         self.HA_KEY_ENABLED_KEY = 'global.ha.enabled'
+        self.APPLY_CRDS_HOOK_ENABLED_KEY = 'hooks.applyCrds'
         self.SKIP_EXISTING_DAPR_CHECK_KEY = 'skipExistingDaprCheck'
         self.EXISTING_DAPR_RELEASE_NAME_KEY = 'existingDaprReleaseName'
         self.EXISTING_DAPR_RELEASE_NAMESPACE_KEY = 'existingDaprReleaseNamespace'
@@ -162,15 +163,18 @@ class Dapr(DefaultExtension):
         # If we are downgrading the extension, then we need to disable the apply-CRDs hook.
         # This is because CRD updates while downgrading can cause issues.
         original_version = original_extension.version
-        if original_version and version and version < original_version:
-            logger.debug("Downgrade detected from %s to %s. Setting hooks.applyCrds to false.",
-                         original_version, version)
-            configuration_settings['hooks.applyCrds'] = 'false'
+        if self.APPLY_CRDS_HOOK_ENABLED_KEY in configuration_settings:
+            logger.debug("'%s' is set to '%s' in --configuration-settings, not overriding it.",
+                         self.APPLY_CRDS_HOOK_ENABLED_KEY, configuration_settings[self.APPLY_CRDS_HOOK_ENABLED_KEY])
+        elif original_version and version and version < original_version:
+            logger.debug("Downgrade detected from %s to %s. Setting %s to false.",
+                         original_version, version, self.APPLY_CRDS_HOOK_ENABLED_KEY)
+            configuration_settings[self.APPLY_CRDS_HOOK_ENABLED_KEY] = 'false'
         else:
-            # If we are not downgrading, set the hooks.applyCrds to true.
+            # If we are not downgrading, enable the apply-CRDs hook explicitly.
             # This is because the value may have been set to false during a previous downgrade.
-            logger.debug("No downgrade detected. Setting hooks.applyCrds to true.")
-            configuration_settings['hooks.applyCrds'] = 'true'
+            logger.debug("No downgrade detected. Setting %s to true.", self.APPLY_CRDS_HOOK_ENABLED_KEY)
+            configuration_settings[self.APPLY_CRDS_HOOK_ENABLED_KEY] = 'true'
 
         # If no changes were made, return the original dict (empty or None).
         if len(configuration_settings) == 0:
