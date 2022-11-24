@@ -162,6 +162,7 @@ class Dapr(DefaultExtension):
 
         # If we are downgrading the extension, then we need to disable the apply-CRDs hook.
         # This is because CRD updates while downgrading can cause issues.
+        # As CRDs are additive, skipping their removal while downgrading is safe.
         original_version = original_extension.version
         if self.APPLY_CRDS_HOOK_ENABLED_KEY in configuration_settings:
             logger.debug("'%s' is set to '%s' in --configuration-settings, not overriding it.",
