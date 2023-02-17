@@ -206,4 +206,5 @@ class Dapr(DefaultExtension):
         try:
             return packaging_version.Version(v1) < packaging_version.Version(v2)
         except packaging_version.InvalidVersion:
-            return False
+            logger.debug("Warning: Unable to compare versions %s and %s.", v1, v2)
+            return True  # This will cause the apply-CRDs hook to be disabled, which is safe.
