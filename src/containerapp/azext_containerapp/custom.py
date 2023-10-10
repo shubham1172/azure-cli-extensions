@@ -3290,12 +3290,16 @@ def init_dapr_components(cmd, resource_group_name, environment_name, statestore=
         raise ValidationError(f"Statestore {statestore} is not supported. Supported statestores are {', '.join(DAPR_SUPPORTED_STATESTORE_DEV_SERVICE_LIST)}.")
     if pubsub not in DAPR_SUPPORTED_PUBSUB_DEV_SERVICE_LIST:
         raise ValidationError(f"Pubsub {pubsub} is not supported. Supported pubsubs are {', '.join(DAPR_SUPPORTED_PUBSUB_DEV_SERVICE_LIST)}.")
+    
+    from ._dapr_utils import DaprUtils
 
-    components = [statestore, pubsub]
-    for component in components:
-        # part 1: create the service if it doesn't exist
-        # part 2: create the dapr component from the service
-        pass
+    # Create the dev services
+    services = list(set([statestore, pubsub]))
+    for service in services:
+        DaprUtils.create_service_if_not_exists(cmd, service, resource_group_name, environment_name)
+    
+    # Create the associated Dapr components
+    pass
 
 
 def list_dapr_components(cmd, resource_group_name, environment_name):
