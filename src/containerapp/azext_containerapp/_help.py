@@ -546,6 +546,18 @@ helps['containerapp env dapr-component'] = """
     short-summary: Commands to manage Dapr components for the Container Apps environment.
 """
 
+helps['containerapp env dapr-component init'] = """
+    type: command
+    short-summary: Initializes Dapr components and dev services for an environment.
+    examples:
+    - name: Initialize Dapr components with default statestore and pubsub.
+      text: |
+          az containerapp env dapr-component init -g MyResourceGroup --name MyEnvironment
+    - name: Initialize Dapr components with Postgres statestore and Kafka pubsub.
+      text: |
+          az containerapp env dapr-component init -g MyResourceGroup --name MyEnvironment --statestore postgres --pubsub kafka
+"""
+
 helps['containerapp env dapr-component list'] = """
     type: command
     short-summary: List Dapr components for an environment.

@@ -342,6 +342,10 @@ def load_arguments(self, _):
         c.argument('environment_name', options_list=['--name', '-n'], help="The environment name.")
         c.argument('yaml', type=file_type, help='Path to a .yaml file with the configuration of a Dapr component. All other parameters will be ignored. For an example, see https://learn.microsoft.com/en-us/azure/container-apps/dapr-overview?tabs=bicep1%2Cyaml#component-schema')
 
+    with self.argument_context('containerapp env dapr-component init') as c:
+        c.argument('statestore', help="The state store component and dev service to create.")
+        c.argument('pubsub', help="The pubsub component and dev service to create.")
+
     with self.argument_context('containerapp revision set-mode') as c:
         c.argument('mode', arg_type=get_enum_type(['single', 'multiple']), help="The active revisions mode for the container app.")
 

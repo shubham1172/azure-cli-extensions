@@ -108,7 +108,8 @@ from ._constants import (MAXIMUM_SECRET_LENGTH, MICROSOFT_SECRET_SETTING_NAME, F
                          MANAGED_CERTIFICATE_RT, PRIVATE_CERTIFICATE_RT, PENDING_STATUS, SUCCEEDED_STATUS, DEV_POSTGRES_IMAGE, DEV_POSTGRES_SERVICE_TYPE,
                          DEV_POSTGRES_CONTAINER_NAME, DEV_REDIS_IMAGE, DEV_REDIS_SERVICE_TYPE, DEV_REDIS_CONTAINER_NAME, DEV_KAFKA_CONTAINER_NAME,
                          DEV_KAFKA_IMAGE, DEV_KAFKA_SERVICE_TYPE, DEV_MARIADB_CONTAINER_NAME, DEV_MARIADB_IMAGE, DEV_MARIADB_SERVICE_TYPE, DEV_QDRANT_IMAGE,
-                         DEV_QDRANT_CONTAINER_NAME, DEV_QDRANT_SERVICE_TYPE, DEV_SERVICE_LIST, CONTAINER_APPS_SDK_MODELS, BLOB_STORAGE_TOKEN_STORE_SECRET_SETTING_NAME)
+                         DEV_QDRANT_CONTAINER_NAME, DEV_QDRANT_SERVICE_TYPE, DEV_SERVICE_LIST, CONTAINER_APPS_SDK_MODELS, BLOB_STORAGE_TOKEN_STORE_SECRET_SETTING_NAME,
+                         DAPR_SUPPORTED_STATESTORE_DEV_SERVICE_LIST, DAPR_SUPPORTED_PUBSUB_DEV_SERVICE_LIST)
 
 logger = get_logger(__name__)
 
@@ -3282,6 +3283,21 @@ def disable_dapr(cmd, name, resource_group_name, no_wait=False):
         handle_raw_exception(e)
 
 
+def init_dapr_components(cmd, resource_group_name, environment_name, statestore="redis", pubsub="redis"):
+    _validate_subscription_registered(cmd, CONTAINER_APPS_RP)
+
+    if statestore not in DAPR_SUPPORTED_STATESTORE_DEV_SERVICE_LIST:
+        raise ValidationError(f"Statestore {statestore} is not supported. Supported statestores are {', '.join(DAPR_SUPPORTED_STATESTORE_DEV_SERVICE_LIST)}.")
+    if pubsub not in DAPR_SUPPORTED_PUBSUB_DEV_SERVICE_LIST:
+        raise ValidationError(f"Pubsub {pubsub} is not supported. Supported pubsubs are {', '.join(DAPR_SUPPORTED_PUBSUB_DEV_SERVICE_LIST)}.")
+
+    components = [statestore, pubsub]
+    for component in components:
+        # part 1: create the service if it doesn't exist
+        # part 2: create the dapr component from the service
+        pass
+
+
 def list_dapr_components(cmd, resource_group_name, environment_name):
     _validate_subscription_registered(cmd, CONTAINER_APPS_RP)
 
@@ -3340,7 +3356,7 @@ def remove_dapr_component(cmd, resource_group_name, dapr_component_name, environ
 
     try:
         r = DaprComponentClient.delete(cmd, resource_group_name, environment_name, name=dapr_component_name)
-        logger.warning("Dapr componenet successfully deleted.")
+        logger.warning("Dapr component successfully deleted.")
         return r
     except Exception as e:
         handle_raw_exception(e)
