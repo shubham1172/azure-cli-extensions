@@ -6,12 +6,21 @@
 from azure.cli.core.azclierror import ValidationError
 from knack.log import get_logger
 from typing import Dict
-from ._clients import ContainerAppClient
+from ._clients import ContainerAppClient, DaprComponentPreviewClient
+from ._models import (
+    DaprComponent as DaprComponentModel,
+    DaprServiceComponentBinding as DaprServiceComponentBindingModel,
+)
 
 logger = get_logger(__name__)
 
 
 class DaprUtils:
+    supported_dapr_components = {
+        "state": ["redis", "postgres"],
+        "pubsub": ["kafka", "redis"],
+    }
+
     # TODO: Add test to make sure these items and consts used in custom.py matches, this is to ensure they are in sync.
     def _get_supported_services() -> Dict:
         """
@@ -37,8 +46,54 @@ class DaprUtils:
         return f"dapr-{service_type}"
 
     @staticmethod
+    def _get_dapr_component_name(component_type: str, service_type: str) -> str:
+        """
+        Get the Dapr component name for the given component type and service type.
+
+        :param component_type: type of the Dapr component to create, e.g. state or pubsub
+        :param service_type: type of the service to create, e.g. redis or kafka
+        """
+        prefix = "statestore" if component_type == "state" else component_type
+        return f"{prefix}-{service_type}"
+
+    @staticmethod
+    def _get_dapr_component_def_from_service(
+        component_type: str,
+        service_type: str,
+        service_name: str,
+        service_id: str,
+        component_version: str = "v1",
+        component_ignore_errors: bool = False,
+    ):
+        """
+        Get the Dapr component definition for the given component type and service type.
+
+        :param component_type: type of the Dapr component to create, e.g. state or pubsub
+        :param service_type: type of the service to create, e.g. redis or kafka
+        :param service_name: name of the service to create, e.g. dapr-redis
+        :param service_id: id of the service to create, e.g. /subscriptions/.../dapr-redis
+        """
+        serviceBinding = DaprServiceComponentBindingModel.copy()
+        serviceBinding["name"] = service_name
+        serviceBinding["serviceId"] = service_id
+
+        component = DaprComponentModel.copy()
+        component["properties"]["componentType"] = f"{component_type}.{service_type}"
+        component["properties"]["version"] = component_version
+        component["properties"]["ignoreErrors"] = component_ignore_errors
+        component["properties"]["serviceComponentBind"] = serviceBinding
+
+        return component
+
+    @staticmethod
     def _create_dapr_component_from_service(
-        component_type: str, service_type: str, service_name: str, service_id: str
+        cmd,
+        component_type: str,
+        service_type: str,
+        service_name: str,
+        service_id: str,
+        resource_group_name: str,
+        environment_name: str,
     ):
         """
         Create a Dapr component if it does not exist.
@@ -51,7 +106,63 @@ class DaprUtils:
 
         :return: Dapr component definition of the component (whether it was created or not)
         """
-        pass
+        if (
+            component_type not in DaprUtils.supported_dapr_components.keys()
+            or service_type not in DaprUtils.supported_dapr_components[component_type]
+        ):
+            raise ValidationError(
+                "Component type {} with service type {} is not supported.".format(
+                    component_type, service_type
+                )
+            )
+
+        component_name = DaprUtils._get_dapr_component_name(
+            component_type, service_type
+        )
+
+        # Look up the component, if it already exists, return it.
+        logger.debug("Looking up Dapr component %s", component_name)
+        component_def = None
+        try:
+            component_def = DaprComponentPreviewClient.show(
+                cmd, resource_group_name, environment_name, component_name
+            )
+        except Exception:
+            pass
+
+        if component_def is not None:
+            logger.warning(
+                "Dapr component %s already exists, skipping creation", component_name
+            )
+            return component_def
+
+        # Create the component.
+        logger.debug("Creating Dapr component %s", component_name)
+        component_def = DaprUtils._get_dapr_component_def_from_service(
+            component_type, service_type, service_name, service_id
+        )
+        try:
+            component = DaprComponentPreviewClient.create_or_update(
+                cmd,
+                resource_group_name,
+                environment_name,
+                component_name,
+                component_def,
+            )
+        except Exception as e:
+            raise ValidationError(
+                "Failed to create Dapr component {}: {}".format(component_name, e)
+            )
+
+        if component is None:
+            raise ValidationError(
+                "Failed to create Dapr component {}, component definition is None".format(
+                    component_name
+                )
+            )
+
+        logger.debug("Successfully created Dapr component %s", component_name)
+        return component
 
     @staticmethod
     def _create_service(
@@ -153,6 +264,20 @@ class DaprUtils:
             )
 
         component_def = DaprUtils._create_dapr_component_from_service(
-            component_type, service_type, service_name, service_id
+            cmd,
+            component_type,
+            service_type,
+            service_name,
+            service_id,
+            resource_group_name,
+            environment_name,
         )
-        return service_def, component_def
+        component_id = safe_get(component_def, "id", default=None)
+        if component_id is None:
+            raise ValidationError(
+                "Failed to create Dapr component of type {} with service type {}, component id is None".format(
+                    component_type, service_type
+                )
+            )
+
+        return service_id, component_id

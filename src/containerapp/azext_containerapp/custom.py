@@ -3292,14 +3292,14 @@ def init_dapr_components(cmd, resource_group_name, environment_name, statestore=
     
     from ._dapr_utils import DaprUtils
     
-    statestore_service_def, statestore_component_def = DaprUtils.create_service_and_dapr_component(
+    statestore_service_id, statestore_component_id = DaprUtils.create_service_and_dapr_component(
         cmd, "state", statestore, resource_group_name, environment_name)
     
     return {
-        "message": "Successfully initialized Dapr components.",
+        "message": "Operation successful.",
         "resources": {
-            "devServices": [statestore_service_def],
-            "daprComponents": [statestore_component_def]
+            "devServices": [statestore_service_id],
+            "daprComponents": [statestore_component_id]
         }
     }
 
