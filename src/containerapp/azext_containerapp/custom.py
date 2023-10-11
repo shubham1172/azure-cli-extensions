@@ -3286,20 +3286,26 @@ def init_dapr_components(cmd, resource_group_name, environment_name, statestore=
     _validate_subscription_registered(cmd, CONTAINER_APPS_RP)
 
     if statestore not in DAPR_SUPPORTED_STATESTORE_DEV_SERVICE_LIST:
-        raise ValidationError(f"Statestore {statestore} is not supported. Supported statestores are {', '.join(DAPR_SUPPORTED_STATESTORE_DEV_SERVICE_LIST)}.")
+        raise ValidationError(
+            f"Statestore {statestore} is not supported. Supported statestores are {', '.join(DAPR_SUPPORTED_STATESTORE_DEV_SERVICE_LIST)}."
+        )
     if pubsub not in DAPR_SUPPORTED_PUBSUB_DEV_SERVICE_LIST:
-        raise ValidationError(f"Pubsub {pubsub} is not supported. Supported pubsubs are {', '.join(DAPR_SUPPORTED_PUBSUB_DEV_SERVICE_LIST)}.")
+        raise ValidationError(
+            f"Pubsub {pubsub} is not supported. Supported pubsubs are {', '.join(DAPR_SUPPORTED_PUBSUB_DEV_SERVICE_LIST)}."
+        )
     
     from ._dapr_utils import DaprUtils
     
     statestore_service_id, statestore_component_id = DaprUtils.create_service_and_dapr_component(
         cmd, "state", statestore, resource_group_name, environment_name)
+    pubsub_service_id, pubsub_component_id = DaprUtils.create_service_and_dapr_component(
+        cmd, "pubsub", pubsub, resource_group_name, environment_name)
     
     return {
         "message": "Operation successful.",
         "resources": {
-            "devServices": [statestore_service_id],
-            "daprComponents": [statestore_component_id]
+            "devServices": [statestore_service_id, pubsub_service_id],
+            "daprComponents": [statestore_component_id, pubsub_component_id]
         }
     }
 
