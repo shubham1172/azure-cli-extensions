@@ -3282,7 +3282,6 @@ def disable_dapr(cmd, name, resource_group_name, no_wait=False):
     except Exception as e:
         handle_raw_exception(e)
 
-
 def init_dapr_components(cmd, resource_group_name, environment_name, statestore="redis", pubsub="redis"):
     _validate_subscription_registered(cmd, CONTAINER_APPS_RP)
 
@@ -3292,14 +3291,17 @@ def init_dapr_components(cmd, resource_group_name, environment_name, statestore=
         raise ValidationError(f"Pubsub {pubsub} is not supported. Supported pubsubs are {', '.join(DAPR_SUPPORTED_PUBSUB_DEV_SERVICE_LIST)}.")
     
     from ._dapr_utils import DaprUtils
-
-    # Create the dev services
-    services = list(set([statestore, pubsub]))
-    for service in services:
-        DaprUtils.create_service_if_not_exists(cmd, service, resource_group_name, environment_name)
     
-    # Create the associated Dapr components
-    pass
+    statestore_service_def, statestore_component_def = DaprUtils.create_service_and_dapr_component(
+        cmd, "state", statestore, resource_group_name, environment_name)
+    
+    return {
+        "message": "Successfully initialized Dapr components.",
+        "resources": {
+            "devServices": [statestore_service_def],
+            "daprComponents": [statestore_component_def]
+        }
+    }
 
 
 def list_dapr_components(cmd, resource_group_name, environment_name):
