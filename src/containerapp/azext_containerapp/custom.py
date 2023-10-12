@@ -3300,11 +3300,12 @@ def init_dapr_components(cmd, resource_group_name, environment_name, statestore=
         cmd, "state", statestore, resource_group_name, environment_name)
     pubsub_service_id, pubsub_component_id = DaprUtils.create_service_and_dapr_component(
         cmd, "pubsub", pubsub, resource_group_name, environment_name)
-    
+
     return {
         "message": "Operation successful.",
         "resources": {
-            "devServices": [statestore_service_id, pubsub_service_id],
+            # Remove duplicates for services like Redis, which can be used for both statestore and pubsub
+            "devServices": list(set([statestore_service_id, pubsub_service_id])),
             "daprComponents": [statestore_component_id, pubsub_component_id]
         }
     }
