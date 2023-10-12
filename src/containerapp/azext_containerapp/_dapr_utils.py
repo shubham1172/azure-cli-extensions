@@ -3,9 +3,9 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
+from typing import Dict
 from azure.cli.core.azclierror import ValidationError
 from knack.log import get_logger
-from typing import Dict
 from ._clients import ContainerAppClient, DaprComponentPreviewClient
 from ._models import (
     DaprComponent as DaprComponentModel,
@@ -22,6 +22,7 @@ class DaprUtils:
     }
 
     # TODO: Add test to make sure these items and consts used in custom.py matches, this is to ensure they are in sync.
+    @staticmethod
     def _get_supported_services() -> Dict:
         """
         Get the supported services for Dapr along with the create function for each service.
@@ -57,7 +58,7 @@ class DaprUtils:
         return f"{prefix}-{service_type}"
 
     @staticmethod
-    def _get_dapr_component_def_from_service(
+    def get_dapr_component_def_from_service(
         component_type: str,
         service_type: str,
         service_name: str,
@@ -111,9 +112,7 @@ class DaprUtils:
             or service_type not in DaprUtils.supported_dapr_components[component_type]
         ):
             raise ValidationError(
-                "Component type {} with service type {} is not supported.".format(
-                    component_type, service_type
-                )
+                f"Component type {component_type} with service type {service_type} is not supported."
             )
 
         component_name = DaprUtils._get_dapr_component_name(
@@ -127,7 +126,7 @@ class DaprUtils:
             component_def = DaprComponentPreviewClient.show(
                 cmd, resource_group_name, environment_name, component_name
             )
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             pass
 
         if component_def is not None:
@@ -138,7 +137,7 @@ class DaprUtils:
 
         # Create the component.
         logger.debug("Creating Dapr component %s", component_name)
-        component_def = DaprUtils._get_dapr_component_def_from_service(
+        component_def = DaprUtils.get_dapr_component_def_from_service(
             component_type, service_type, service_name, service_id
         )
         try:
@@ -151,14 +150,12 @@ class DaprUtils:
             )
         except Exception as e:
             raise ValidationError(
-                "Failed to create Dapr component {}: {}".format(component_name, e)
-            )
+                f"Failed to create Dapr component {component_name}: {e}"
+            ) from e
 
         if component is None:
             raise ValidationError(
-                "Failed to create Dapr component {}, component definition is None".format(
-                    component_name
-                )
+                f"Failed to create Dapr component {component_name}, component definition is None"
             )
 
         logger.debug("Successfully created Dapr component %s", component_name)
@@ -183,9 +180,7 @@ class DaprUtils:
         supported_services = DaprUtils._get_supported_services()
 
         if service_type not in supported_services.keys():
-            raise ValidationError(
-                "Service type {} is not supported.".format(service_type)
-            )
+            raise ValidationError(f"Service type {service_type} is not supported.")
 
         # Look up the service, if it already exists, return it.
         logger.debug("Looking up service %s of type %s", service_name, service_type)
@@ -194,7 +189,7 @@ class DaprUtils:
             service_def = ContainerAppClient.show(
                 cmd, resource_group_name, service_name
             )
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             pass
 
         if service_def is not None:
@@ -215,16 +210,12 @@ class DaprUtils:
             )
         except Exception as e:
             raise ValidationError(
-                "Failed to create service {} of type {}: {}".format(
-                    service_name, service_type, e
-                )
-            )
+                f"Failed to create service {service_name} of type {service_type}: {e}"
+            ) from e
 
         if service_def is None:
             raise ValidationError(
-                "Failed to create service {} of type {}, service definition is None".format(
-                    service_name, service_type
-                )
+                f"Failed to create service {service_name} of type {service_type}, service definition is None"
             )
 
         logger.debug(
@@ -258,9 +249,7 @@ class DaprUtils:
         service_id = safe_get(service_def, "id", default=None)
         if service_id is None:
             raise ValidationError(
-                "Failed to create service {} of type {}, service id is None".format(
-                    service_name, service_type
-                )
+                f"Failed to create service {service_name} of type {service_type}, service id is None"
             )
 
         component_def = DaprUtils._create_dapr_component_from_service(
@@ -275,9 +264,8 @@ class DaprUtils:
         component_id = safe_get(component_def, "id", default=None)
         if component_id is None:
             raise ValidationError(
-                "Failed to create Dapr component of type {} with service type {}, component id is None".format(
-                    component_type, service_type
-                )
+                f"Failed to create Dapr component of type {component_type} with service type {service_type}"
+                ", component id is None"
             )
 
         return service_id, component_id
