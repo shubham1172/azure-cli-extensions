@@ -3296,10 +3296,17 @@ def init_dapr_components(cmd, resource_group_name, environment_name, statestore=
 
     from ._dapr_utils import DaprUtils
 
-    statestore_service_id, statestore_component_id = DaprUtils.create_service_and_dapr_component(
+    statestore_service_id, statestore_component_id = DaprUtils.create_dapr_component_with_service(
         cmd, "state", statestore, resource_group_name, environment_name)
-    pubsub_service_id, pubsub_component_id = DaprUtils.create_service_and_dapr_component(
-        cmd, "pubsub", pubsub, resource_group_name, environment_name)
+
+    if statestore == pubsub:
+        # For cases where statestore and pubsub are the same, we don't need to create another service.
+        # E.g. Redis can be used for both statestore and pubsub.
+        pubsub_service_id, pubsub_component_id = DaprUtils.create_dapr_component_with_service(
+            cmd, "pubsub", pubsub, resource_group_name, environment_name, service_id=statestore_service_id)
+    else:
+        pubsub_service_id, pubsub_component_id = DaprUtils.create_dapr_component_with_service(
+            cmd, "pubsub", pubsub, resource_group_name, environment_name)
 
     return {
         "message": "Operation successful.",

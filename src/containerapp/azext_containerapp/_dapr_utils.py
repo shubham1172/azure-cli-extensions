@@ -58,7 +58,7 @@ class DaprUtils:
         return f"{prefix}-{service_type}"
 
     @staticmethod
-    def get_dapr_component_def_from_service(
+    def _get_dapr_component_model_from_service(
         component_type: str,
         service_type: str,
         service_name: str,
@@ -67,7 +67,7 @@ class DaprUtils:
         component_ignore_errors: bool = False,
     ):
         """
-        Get the Dapr component definition for the given component type and service type.
+        Get the Dapr component model for the given component type and service type.
 
         :param component_type: type of the Dapr component to create, e.g. state or pubsub
         :param service_type: type of the service to create, e.g. redis or kafka
@@ -87,8 +87,9 @@ class DaprUtils:
         return component
 
     @staticmethod
-    def _create_dapr_component_from_service(
+    def create_dapr_component_with_service_binding(
         cmd,
+        component_name: str,
         component_type: str,
         service_type: str,
         service_name: str,
@@ -97,13 +98,13 @@ class DaprUtils:
         environment_name: str,
     ):
         """
-        Create a Dapr component if it does not exist.
-        The component will have bindings to the given service.
+        Create a Dapr component with a service binding if it does not exist.
 
+        :param component_name: name of the Dapr component to create, e.g. statestore-redis
         :param component_type: type of the Dapr component to create, e.g. state or pubsub
-        :param service_type: type of the service to create, e.g. redis or kafka
-        :param service_name: name of the service to create, e.g. dapr-redis
-        :param service_id: id of the service to create, e.g. /subscriptions/.../dapr-redis
+        :param service_type: type of the service to bind to, e.g. redis or kafka
+        :param service_name: name of the service to bind to, e.g. dapr-redis
+        :param service_id: id of the service to bind to, e.g. /subscriptions/.../dapr-redis
 
         :return: Dapr component definition of the component (whether it was created or not)
         """
@@ -114,10 +115,6 @@ class DaprUtils:
             raise ValidationError(
                 f"Component type {component_type} with service type {service_type} is not supported."
             )
-
-        component_name = DaprUtils._get_dapr_component_name(
-            component_type, service_type
-        )
 
         # Look up the component, if it already exists, return it.
         logger.debug("Looking up Dapr component %s", component_name)
@@ -137,29 +134,29 @@ class DaprUtils:
 
         # Create the component.
         logger.debug("Creating Dapr component %s", component_name)
-        component_def = DaprUtils.get_dapr_component_def_from_service(
+        component_model = DaprUtils._get_dapr_component_model_from_service(
             component_type, service_type, service_name, service_id
         )
         try:
-            component = DaprComponentPreviewClient.create_or_update(
+            component_def = DaprComponentPreviewClient.create_or_update(
                 cmd,
                 resource_group_name,
                 environment_name,
                 component_name,
-                component_def,
+                component_model,
             )
         except Exception as e:
             raise ValidationError(
                 f"Failed to create Dapr component {component_name}: {e}"
             ) from e
 
-        if component is None:
+        if component_def is None:
             raise ValidationError(
                 f"Failed to create Dapr component {component_name}, component definition is None"
             )
 
         logger.debug("Successfully created Dapr component %s", component_name)
-        return component
+        return component_def
 
     @staticmethod
     def _create_service(
@@ -178,7 +175,6 @@ class DaprUtils:
         :return: service definition of the service (whether it was created or not)
         """
         supported_services = DaprUtils._get_supported_services()
-
         if service_type not in supported_services.keys():
             raise ValidationError(f"Service type {service_type} is not supported.")
 
@@ -224,36 +220,43 @@ class DaprUtils:
         return service_def
 
     @staticmethod
-    def create_service_and_dapr_component(
+    def create_dapr_component_with_service(
         cmd,
         component_type: str,
         service_type: str,
         resource_group_name: str,
         environment_name: str,
-    ) -> [Dict, Dict]:
+        service_id: str = None,
+    ) -> [str, str, str, str]:
         """
-        Create a service and a Dapr component with bindings to the service.
-        If the service or the Dapr component already exists, skip creation.
+        Create a Dapr component and an associated service if they do not exist.
+        If the service id is provided, use it instead of creating a new service.
 
         :param component_type: type of the Dapr component to create, e.g. state or pubsub
         :param service_type: type of the service to create, e.g. redis or kafka
+        :param service_id: id of an existing service to use, e.g. /subscriptions/.../dapr-redis
 
-        :return definition of the service and the Dapr component (whether they were created newly or not)
+        :return: service id, component id
         """
         from .custom import safe_get
 
         service_name = DaprUtils._get_service_name(service_type)
-        service_def = DaprUtils._create_service(
-            cmd, service_type, service_name, resource_group_name, environment_name
-        )
-        service_id = safe_get(service_def, "id", default=None)
         if service_id is None:
-            raise ValidationError(
-                f"Failed to create service {service_name} of type {service_type}, service id is None"
+            # Create the service.
+            service_def = DaprUtils._create_service(
+                cmd, service_type, service_name, resource_group_name, environment_name
             )
-
-        component_def = DaprUtils._create_dapr_component_from_service(
+            service_id = safe_get(service_def, "id", default=None)
+            if service_id is None:
+                raise ValidationError(
+                    f"Failed to create service {service_name} of type {service_type}, service id is None"
+                )
+        
+        # Create the Dapr component.
+        component_name = DaprUtils._get_dapr_component_name(component_type, service_type)
+        component_def = DaprUtils.create_dapr_component_with_service_binding(
             cmd,
+            component_name,
             component_type,
             service_type,
             service_name,
