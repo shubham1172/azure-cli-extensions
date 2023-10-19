@@ -301,22 +301,22 @@ ContainerAppCertificateEnvelope = {
 
 DaprComponent = {
     "properties": {
-        "componentType": None, # str
-        "ignoreErrors": None, # str
-        "initTimeout": None, # str
-        "metadata": None, # [DaprMetadata]
-        "scopes": None, # [str]
-        "secrets": None, # [Secret]
-        "secretStoreComponent": None, # str
-        "serviceComponentBind": None, # DaprServiceComponentBinding
-        "version": None, # str
+        "componentType": None,  # str
+        "ignoreErrors": None,  # str
+        "initTimeout": None,  # str
+        "metadata": None,  # [DaprMetadata]
+        "scopes": None,  # [str]
+        "secrets": None,  # [Secret]
+        "secretStoreComponent": None,  # str
+        "serviceComponentBind": None,  # DaprServiceComponentBinding
+        "version": None,  # str
     }
 }
 
 DaprServiceComponentBinding = {
-    "name": None, # str
-    "serviceId": None, # str
-    "metadata": None, # Dict[str, str]
+    "name": None,  # str
+    "serviceId": None,  # str
+    "metadata": None,  # Dict[str, str]
 }
 
 DaprMetadata = {

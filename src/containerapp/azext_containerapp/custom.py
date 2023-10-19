@@ -3282,6 +3282,7 @@ def disable_dapr(cmd, name, resource_group_name, no_wait=False):
     except Exception as e:
         handle_raw_exception(e)
 
+
 def init_dapr_components(cmd, resource_group_name, environment_name, statestore="redis", pubsub="redis"):
     _validate_subscription_registered(cmd, CONTAINER_APPS_RP)
 
