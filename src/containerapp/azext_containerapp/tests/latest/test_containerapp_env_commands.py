@@ -198,6 +198,13 @@ class ContainerappEnvScenarioTest(ScenarioTest):
             JMESPathCheck('length(@)', 0),
         ])
 
+        self.cmd('containerapp env dapr-component init -n {} -g {}'.format(env_name, resource_group), checks=[
+            JMESPathCheck('length(@)', 2),
+            JMESPathCheck('message', "Operation successful."),
+            JMESPathCheck('length(resources.daprComponents)', 2), # Redis statestore and pubsub components
+            JMESPathCheck('length(resources.devServices)', 1), # Single Redis instance
+        ])
+
     @AllowLargeResponse(8192)
     @live_only()  # encounters 'CannotOverwriteExistingCassetteException' only when run from recording (passes when run live)
     @ResourceGroupPreparer(location="northeurope")
