@@ -251,7 +251,7 @@ class DaprUtils:
                 raise ValidationError(
                     f"Failed to create service {service_name} of type {service_type}, service id is None"
                 )
-        
+
         # Create the Dapr component.
         component_name = DaprUtils._get_dapr_component_name(component_type, service_type)
         component_def = DaprUtils.create_dapr_component_with_service_binding(
