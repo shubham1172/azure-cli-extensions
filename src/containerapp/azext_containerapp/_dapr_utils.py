@@ -21,7 +21,6 @@ class DaprUtils:
         "pubsub": ["kafka", "redis"],
     }
 
-    # TODO: Add test to make sure these items and consts used in custom.py matches, this is to ensure they are in sync.
     @staticmethod
     def _get_supported_services() -> Dict:
         """
