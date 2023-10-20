@@ -65,7 +65,7 @@ class DaprUtils:
         service_id: str,
         component_version: str = "v1",
         component_ignore_errors: bool = False,
-        component_metadata_bag: Dict[str, str] = {},
+        component_metadata: Dict[str, str] = None,
     ):
         """
         Get the Dapr component model for the given component type and service type.
@@ -76,18 +76,21 @@ class DaprUtils:
         :param service_id: id of the service to create, e.g. /subscriptions/.../dapr-redis
         :param component_version: version of the Dapr component to create, e.g. v1
         :param component_ignore_errors: whether to ignore errors when Dapr loads the component
-        :param component_metadata_bag: metadata to add to the Dapr component, e.g. {"key": "value"}
+        :param component_metadata: metadata to add to the Dapr component, e.g. {"key": "value"}
+
+        :return: Dapr component model for the component
         """
         serviceBinding = DaprServiceComponentBindingModel.copy()
         serviceBinding["name"] = service_name
         serviceBinding["serviceId"] = service_id
 
         metadata_items = []
-        for metadata_key, metadata_value in component_metadata_bag.items():
-            metadata_item = DaprMetadataModel.copy()
-            metadata_item["name"] = metadata_key
-            metadata_item["value"] = metadata_value
-            metadata_items.append(metadata_item)
+        if component_metadata:
+            for metadata_key, metadata_value in component_metadata.items():
+                metadata_item = DaprMetadataModel.copy()
+                metadata_item["name"] = metadata_key
+                metadata_item["value"] = metadata_value
+                metadata_items.append(metadata_item)
 
         component = DaprComponentModel.copy()
         component["properties"]["componentType"] = f"{component_type}.{service_type}"
@@ -103,22 +106,22 @@ class DaprUtils:
         cmd,
         component_name: str,
         component_type: str,
-        component_metadata: Dict[str, str],
         service_type: str,
         service_name: str,
         service_id: str,
         resource_group_name: str,
         environment_name: str,
+        component_metadata: Dict[str, str] = None,
     ):
         """
         Create a Dapr component with a service binding if it does not exist.
 
         :param component_name: name of the Dapr component to create, e.g. statestore-redis
         :param component_type: type of the Dapr component to create, e.g. state or pubsub
-        :param component_metadata: metadata to add to the Dapr component, e.g. {"key": "value"}
         :param service_type: type of the service to bind to, e.g. redis or kafka
         :param service_name: name of the service to bind to, e.g. dapr-redis
         :param service_id: id of the service to bind to, e.g. /subscriptions/.../dapr-redis
+        :param component_metadata: metadata to add to the Dapr component, e.g. {"key": "value"}
 
         :return: Dapr component definition of the component (whether it was created or not)
         """
@@ -149,7 +152,7 @@ class DaprUtils:
         # Create the component.
         logger.debug("Creating Dapr component %s", component_name)
         component_model = DaprUtils._get_dapr_component_model_from_service(
-            component_type, service_type, service_name, service_id, component_metadata_bag=component_metadata
+            component_type, service_type, service_name, service_id, component_metadata=component_metadata
         )
         try:
             component_def = DaprComponentPreviewClient.create_or_update(
@@ -241,7 +244,7 @@ class DaprUtils:
         resource_group_name: str,
         environment_name: str,
         service_id: str = None,
-        component_metadata: Dict[str, str] = {},
+        component_metadata: Dict[str, str] = None,
     ) -> [str, str, str, str]:
         """
         Create a Dapr component and an associated service if they do not exist.
@@ -274,12 +277,12 @@ class DaprUtils:
             cmd,
             component_name,
             component_type,
-            component_metadata,
             service_type,
             service_name,
             service_id,
             resource_group_name,
             environment_name,
+            component_metadata=component_metadata
         )
         component_id = safe_get(component_def, "id", default=None)
         if component_id is None:
