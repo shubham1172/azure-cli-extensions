@@ -44,16 +44,21 @@ class DaprUtilsTest(unittest.TestCase):
         self.assertEqual(component_model["properties"]["componentType"], "state.redis")
         self.assertEqual(component_model["properties"]["version"], "v1")
         self.assertEqual(component_model["properties"]["ignoreErrors"], False)
+        self.assertEqual(component_model["properties"]["metadata"], [])
         self.assertEqual(component_model["properties"]["serviceComponentBind"]["name"], "dapr-redis")
         self.assertEqual(component_model["properties"]["serviceComponentBind"]["serviceId"], "redisId")
 
-        component_model = DaprUtils._get_dapr_component_model_from_service("pubsub", "kafka", "dapr-kafka", "kafkaId", "v2", True)
+        component_model = DaprUtils._get_dapr_component_model_from_service("pubsub", "kafka", "dapr-kafka", "kafkaId", 
+                                                                           "v2", True, {"foo": "bar", "bar": "baz"})
         self.assertEqual(component_model["properties"]["componentType"], "pubsub.kafka")
         self.assertEqual(component_model["properties"]["version"], "v2")
         self.assertEqual(component_model["properties"]["ignoreErrors"], True)
+        self.assertEqual(len(component_model["properties"]["metadata"]), 2)
+        self.assertIn({"name": "foo", "value": "bar", "secretRef": None}, component_model["properties"]["metadata"])
+        self.assertIn({"name": "bar", "value": "baz", "secretRef": None}, component_model["properties"]["metadata"])
         self.assertEqual(component_model["properties"]["serviceComponentBind"]["name"], "dapr-kafka")
         self.assertEqual(component_model["properties"]["serviceComponentBind"]["serviceId"], "kafkaId")
-    
+
     def test_create_dapr_component_with_service_binding(self):
         testcases = [
             {

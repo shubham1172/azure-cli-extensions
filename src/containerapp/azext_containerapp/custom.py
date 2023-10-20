@@ -3297,8 +3297,9 @@ def init_dapr_components(cmd, resource_group_name, environment_name, statestore=
 
     from ._dapr_utils import DaprUtils
 
+    statestore_metadata = {"actorStateStore": "true"}
     statestore_service_id, statestore_component_id = DaprUtils.create_dapr_component_with_service(
-        cmd, "state", statestore, resource_group_name, environment_name)
+        cmd, "state", statestore, resource_group_name, environment_name, component_metadata=statestore_metadata)
 
     if statestore == pubsub:
         # For cases where statestore and pubsub are the same, we don't need to create another service.
