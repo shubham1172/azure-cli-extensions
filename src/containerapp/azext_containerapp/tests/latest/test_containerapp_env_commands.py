@@ -216,15 +216,37 @@ class ContainerappEnvScenarioTest(ScenarioTest):
         self.assertIn("containerapps/dapr-redis", output_json["resources"]["devServices"][0])
 
         # Should not create a Redis statestore and pubsub components if they already exist.
-        output = self.cmd('containerapp env dapr-component init -n {} -g {}'.format(env_name, resource_group), checks=[
+        output_json = self.cmd('containerapp env dapr-component init -n {} -g {}'.format(env_name, resource_group), checks=[
             JMESPathCheck('length(@)', 2),
             JMESPathCheck('message', "Operation successful."),
             JMESPathCheck('length(resources.daprComponents)', 2), # Redis statestore and pubsub components
             JMESPathCheck('length(resources.devServices)', 1), # Single Redis instance
-        ]).output.strip()
+        ]).get_output_in_json()
         self.assertIn("daprComponents/statestore-redis", output_json["resources"]["daprComponents"][0])
         self.assertIn("daprComponents/pubsub-redis", output_json["resources"]["daprComponents"][1])
         self.assertIn("containerapps/dapr-redis", output_json["resources"]["devServices"][0])
+
+        # Redis statestore should be correctly created.
+        self.cmd('containerapp env dapr-component show --dapr-component-name {} -n {} -g {}'.format("statestore-redis", env_name, resource_group), checks=[
+            JMESPathCheck('name', "statestore-redis"),
+            JMESPathCheck('properties.componentType', "state.redis"),
+            JMESPathCheck('length(properties.metadata)', 1),
+            JMESPathCheck('properties.metadata[0].name', "actorStateStore"),
+            JMESPathCheck('properties.metadata[0].value', "true"),
+            JMESPathCheck('properties.serviceComponentBind.name', "dapr-redis"),
+            JMESPathCheck('properties.serviceComponentBind.serviceId', output_json["resources"]["devServices"][0]),
+            JMESPathCheck('properties.version', "v1"),
+        ])
+
+        # Redis pubsub should be correctly created.
+        self.cmd('containerapp env dapr-component show --dapr-component-name {} -n {} -g {}'.format("pubsub-redis", env_name, resource_group), checks=[
+            JMESPathCheck('name', "pubsub-redis"),
+            JMESPathCheck('properties.componentType', "pubsub.redis"),
+            JMESPathCheck('length(properties.metadata)', 0),
+            JMESPathCheck('properties.serviceComponentBind.name', "dapr-redis"),
+            JMESPathCheck('properties.serviceComponentBind.serviceId', output_json["resources"]["devServices"][0]),
+            JMESPathCheck('properties.version', "v1"),
+        ])
 
 
     @AllowLargeResponse(8192)

@@ -18,6 +18,7 @@ logger = get_logger(__name__)
 
 class DaprUtils:
     supported_dapr_components = {
+        # All state stores should support actors.
         "state": ["redis", "postgres"],
         "pubsub": ["kafka", "redis"],
     }
