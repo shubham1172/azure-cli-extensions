@@ -15,6 +15,9 @@ from ._models import (
 
 logger = get_logger(__name__)
 
+SERVICEBIND_METADATA_CREATEDBY_KEY = "SB_CREATED_BY"
+SERVICEBIND_METADATA_CREATEDBY_VALUE = "azext_containerapp_daprutils"
+
 
 class DaprUtils:
     supported_dapr_components = {
@@ -48,15 +51,15 @@ class DaprUtils:
         return f"dapr-{service_type}"
 
     @staticmethod
-    def _get_dapr_component_name(component_type: str, service_type: str) -> str:
+    def _get_dapr_component_name(component_type: str) -> str:
         """
-        Get the Dapr component name for the given component type and service type.
+        Get the Dapr component name for the given component type.
 
         :param component_type: type of the Dapr component to create, e.g. state or pubsub
-        :param service_type: type of the service to create, e.g. redis or kafka
+
+        :return: Dapr component name
         """
-        prefix = "statestore" if component_type == "state" else component_type
-        return f"{prefix}-{service_type}"
+        return "statestore" if component_type == "state" else component_type
 
     @staticmethod
     def _get_dapr_component_model_from_service(
@@ -84,6 +87,9 @@ class DaprUtils:
         serviceBinding = DaprServiceComponentBindingModel.copy()
         serviceBinding["name"] = service_name
         serviceBinding["serviceId"] = service_id
+        serviceBinding["metadata"] = {
+            SERVICEBIND_METADATA_CREATEDBY_KEY: SERVICEBIND_METADATA_CREATEDBY_VALUE
+        }
 
         metadata_items = []
         if component_metadata:
@@ -101,6 +107,37 @@ class DaprUtils:
         component["properties"]["metadata"] = metadata_items
 
         return component
+
+    @staticmethod
+    def _is_component_created_by_daprutils(component_def) -> bool:
+        """
+        Check if the component was created by DaprUtils.
+
+        :param component_def: component definition to check
+
+        :return: True if the component was created by DaprUtils, False otherwise
+        """
+        from .custom import safe_get
+
+        if component_def is None:
+            raise ValidationError("Component definition cannot be None.")
+
+        service_binding_metadata_created_by = safe_get(
+            component_def,
+            "properties",
+            "serviceComponentBind",
+            "metadata",
+            SERVICEBIND_METADATA_CREATEDBY_KEY,
+        )
+        if (
+            service_binding_metadata_created_by
+            and service_binding_metadata_created_by
+            == SERVICEBIND_METADATA_CREATEDBY_VALUE
+        ):
+            # If the component has the service binding metadata with the created by key and value, return True.
+            return True
+
+        return False
 
     @staticmethod
     def create_dapr_component_with_service_binding(
@@ -131,10 +168,10 @@ class DaprUtils:
             or service_type not in DaprUtils.supported_dapr_components[component_type]
         ):
             raise ValidationError(
-                f"Component type {component_type} with service type {service_type} is not supported."
+                f"Dapr component type {component_type} with service type {service_type} is not supported."
             )
 
-        # Look up the component, if it already exists, return it.
+        # Check if the component already exists.
         logger.debug("Looking up Dapr component %s", component_name)
         component_def = None
         try:
@@ -144,16 +181,24 @@ class DaprUtils:
         except Exception:  # pylint: disable=broad-except
             pass
 
-        if component_def is not None:
-            logger.warning(
-                "Dapr component %s already exists, skipping creation", component_name
+        # Throw an error if the component already exists, and was not created by DaprUtils.
+        # This is to prevent users from accidentally overwriting components that they have created.
+        if component_def and not DaprUtils._is_component_created_by_daprutils(
+            component_def
+        ):
+            raise ValidationError(
+                f"Dapr component {component_name} already exists and cannot be overwritten."
+                " Please delete the component and try again."
             )
-            return component_def
 
         # Create the component.
         logger.debug("Creating Dapr component %s", component_name)
         component_model = DaprUtils._get_dapr_component_model_from_service(
-            component_type, service_type, service_name, service_id, component_metadata=component_metadata
+            component_type,
+            service_type,
+            service_name,
+            service_id,
+            component_metadata=component_metadata,
         )
         try:
             component_def = DaprComponentPreviewClient.create_or_update(
@@ -273,7 +318,9 @@ class DaprUtils:
                 )
 
         # Create the Dapr component.
-        component_name = DaprUtils._get_dapr_component_name(component_type, service_type)
+        component_name = DaprUtils._get_dapr_component_name(
+            component_type, service_type
+        )
         component_def = DaprUtils.create_dapr_component_with_service_binding(
             cmd,
             component_name,
@@ -283,7 +330,7 @@ class DaprUtils:
             service_id,
             resource_group_name,
             environment_name,
-            component_metadata=component_metadata
+            component_metadata=component_metadata,
         )
         component_id = safe_get(component_def, "id", default=None)
         if component_id is None:

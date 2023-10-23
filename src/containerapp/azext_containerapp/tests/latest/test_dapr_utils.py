@@ -5,8 +5,12 @@
 
 import unittest
 from azext_containerapp._constants import (
-    DEV_SERVICE_LIST, DAPR_SUPPORTED_PUBSUB_DEV_SERVICE_LIST, DAPR_SUPPORTED_STATESTORE_DEV_SERVICE_LIST)
+    DEV_SERVICE_LIST,
+    DAPR_SUPPORTED_PUBSUB_DEV_SERVICE_LIST,
+    DAPR_SUPPORTED_STATESTORE_DEV_SERVICE_LIST,
+)
 from azext_containerapp._dapr_utils import DaprUtils
+
 
 class DaprUtilsTest(unittest.TestCase):
     def test_supported_dapr_components(self):
@@ -15,10 +19,18 @@ class DaprUtilsTest(unittest.TestCase):
         self.assertIn("pubsub", supported_dapr_components)
         self.assertIn("state", supported_dapr_components)
 
-        self.assertEqual(set(supported_dapr_components["pubsub"])
-                         .difference(set(DAPR_SUPPORTED_PUBSUB_DEV_SERVICE_LIST)), set())
-        self.assertEqual(set(supported_dapr_components["state"])
-                            .difference(set(DAPR_SUPPORTED_STATESTORE_DEV_SERVICE_LIST)), set())
+        self.assertEqual(
+            set(supported_dapr_components["pubsub"]).difference(
+                set(DAPR_SUPPORTED_PUBSUB_DEV_SERVICE_LIST)
+            ),
+            set(),
+        )
+        self.assertEqual(
+            set(supported_dapr_components["state"]).difference(
+                set(DAPR_SUPPORTED_STATESTORE_DEV_SERVICE_LIST)
+            ),
+            set(),
+        )
 
     def test_get_supported_services(self):
         supported_services = DaprUtils._get_supported_services()
@@ -26,60 +38,97 @@ class DaprUtilsTest(unittest.TestCase):
             # Should be a supported dev service
             self.assertIn(service, DEV_SERVICE_LIST)
             # Should be either a Dapr supported pubsub or statestore service
-            self.assertTrue(service in DAPR_SUPPORTED_PUBSUB_DEV_SERVICE_LIST \
-                            or service in DAPR_SUPPORTED_STATESTORE_DEV_SERVICE_LIST)
+            self.assertTrue(
+                service in DAPR_SUPPORTED_PUBSUB_DEV_SERVICE_LIST
+                or service in DAPR_SUPPORTED_STATESTORE_DEV_SERVICE_LIST
+            )
 
     def test_get_service_name(self):
         testcases = [["foo", "dapr-foo"], ["foo-bar", "dapr-foo-bar"]]
         for testcase in testcases:
             self.assertEqual(DaprUtils._get_service_name(testcase[0]), testcase[1])
-        
+
     def test_get_dapr_component_name(self):
-        testcases = [["state", "redis", "statestore-redis"], ["pubsub", "kafka", "pubsub-kafka"]]
+        testcases = [["state", "statestore"], ["pubsub", "pubsub"], ["foo", "foo"]]
         for testcase in testcases:
-            self.assertEqual(DaprUtils._get_dapr_component_name(testcase[0], testcase[1]), testcase[2])
-    
+            self.assertEqual(
+                DaprUtils._get_dapr_component_name(testcase[0]), testcase[1]
+            )
+
     def test_dapr_component_model_from_service(self):
-        component_model = DaprUtils._get_dapr_component_model_from_service("state", "redis", "dapr-redis", "redisId")
+        component_model = DaprUtils._get_dapr_component_model_from_service(
+            "state", "redis", "dapr-redis", "redisId"
+        )
         self.assertEqual(component_model["properties"]["componentType"], "state.redis")
         self.assertEqual(component_model["properties"]["version"], "v1")
         self.assertEqual(component_model["properties"]["ignoreErrors"], False)
         self.assertEqual(component_model["properties"]["metadata"], [])
-        self.assertEqual(component_model["properties"]["serviceComponentBind"]["name"], "dapr-redis")
-        self.assertEqual(component_model["properties"]["serviceComponentBind"]["serviceId"], "redisId")
+        self.assertEqual(
+            component_model["properties"]["serviceComponentBind"]["name"], "dapr-redis"
+        )
+        self.assertEqual(
+            component_model["properties"]["serviceComponentBind"]["serviceId"],
+            "redisId",
+        )
 
-        component_model = DaprUtils._get_dapr_component_model_from_service("pubsub", "kafka", "dapr-kafka", "kafkaId", 
-                                                                           "v2", True, {"foo": "bar", "bar": "baz"})
+        component_model = DaprUtils._get_dapr_component_model_from_service(
+            "pubsub",
+            "kafka",
+            "dapr-kafka",
+            "kafkaId",
+            "v2",
+            True,
+            {"foo": "bar", "bar": "baz"},
+        )
         self.assertEqual(component_model["properties"]["componentType"], "pubsub.kafka")
         self.assertEqual(component_model["properties"]["version"], "v2")
         self.assertEqual(component_model["properties"]["ignoreErrors"], True)
         self.assertEqual(len(component_model["properties"]["metadata"]), 2)
-        self.assertIn({"name": "foo", "value": "bar", "secretRef": None}, component_model["properties"]["metadata"])
-        self.assertIn({"name": "bar", "value": "baz", "secretRef": None}, component_model["properties"]["metadata"])
-        self.assertEqual(component_model["properties"]["serviceComponentBind"]["name"], "dapr-kafka")
-        self.assertEqual(component_model["properties"]["serviceComponentBind"]["serviceId"], "kafkaId")
+        self.assertIn(
+            {"name": "foo", "value": "bar", "secretRef": None},
+            component_model["properties"]["metadata"],
+        )
+        self.assertIn(
+            {"name": "bar", "value": "baz", "secretRef": None},
+            component_model["properties"]["metadata"],
+        )
+        self.assertEqual(
+            component_model["properties"]["serviceComponentBind"]["name"], "dapr-kafka"
+        )
+        self.assertEqual(
+            component_model["properties"]["serviceComponentBind"]["serviceId"],
+            "kafkaId",
+        )
 
     def test_create_dapr_component_with_service_binding(self):
         testcases = [
             {
                 "name": "invalid service binding",
                 "component_type": "state",
-                "service_type": "foo"
-            }, 
+                "service_type": "foo",
+            },
             {
                 "name": "invalid component type",
                 "component_type": "foo",
-                "service_type": "redis"
-            }
+                "service_type": "redis",
+            },
         ]
 
         for testcase in testcases:
             try:
-                DaprUtils.create_dapr_component_with_service_binding(None, 
-                    "component_name", testcase["component_type"], testcase["service_type"], 
-                    "service_name", "service_id", "resource_group", "environment")
+                DaprUtils.create_dapr_component_with_service_binding(
+                    None,
+                    "component_name",
+                    testcase["component_type"],
+                    testcase["service_type"],
+                    "service_name",
+                    "service_id",
+                    "resource_group",
+                    "environment",
+                )
                 self.fail("Should have raised an exception")
             except Exception as e:
-                self.assertEqual(str(e), 
-                    f"Component type {testcase['component_type']} with service type {testcase['service_type']} is not supported.")
-
+                self.assertEqual(
+                    str(e),
+                    f"Component type {testcase['component_type']} with service type {testcase['service_type']} is not supported.",
+                )
