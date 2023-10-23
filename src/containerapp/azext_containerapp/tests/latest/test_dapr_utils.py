@@ -62,13 +62,21 @@ class DaprUtilsTest(unittest.TestCase):
         self.assertEqual(component_model["properties"]["componentType"], "state.redis")
         self.assertEqual(component_model["properties"]["version"], "v1")
         self.assertEqual(component_model["properties"]["ignoreErrors"], False)
-        self.assertEqual(component_model["properties"]["metadata"], [])
         self.assertEqual(
             component_model["properties"]["serviceComponentBind"]["name"], "dapr-redis"
         )
         self.assertEqual(
             component_model["properties"]["serviceComponentBind"]["serviceId"],
             "redisId",
+        )
+        self.assertEqual(
+            len(component_model["properties"]["serviceComponentBind"]["metadata"]), 1
+        )
+        self.assertEqual(
+            component_model["properties"]["serviceComponentBind"]["metadata"][
+                "SB_CREATED_BY"
+            ],
+            "azext_containerapp_daprutils",
         )
 
         component_model = DaprUtils._get_dapr_component_model_from_service(
@@ -130,5 +138,5 @@ class DaprUtilsTest(unittest.TestCase):
             except Exception as e:
                 self.assertEqual(
                     str(e),
-                    f"Component type {testcase['component_type']} with service type {testcase['service_type']} is not supported.",
+                    f"Dapr component type {testcase['component_type']} with service type {testcase['service_type']} is not supported.",
                 )
