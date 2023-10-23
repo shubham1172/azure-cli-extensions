@@ -27,7 +27,7 @@ CONTAINER_APP_EXTENSION_TYPE = "microsoft.app.environment"
 MANAGED_CERTIFICATE_RT = "managedCertificates"
 PRIVATE_CERTIFICATE_RT = "certificates"
 
-DEV_SERVICE_LIST = ["kafka", "postgres", "redis", "mariadb", "qdrant"]
+DEV_SERVICE_LIST = ["kafka", "postgres", "redis", "mariadb", "qdrant", "milvus"]
 
 DEV_KAFKA_IMAGE = 'kafka'
 DEV_KAFKA_SERVICE_TYPE = 'kafka'
@@ -48,6 +48,10 @@ DEV_MARIADB_CONTAINER_NAME = 'mariadb'
 DEV_QDRANT_IMAGE = 'qdrant'
 DEV_QDRANT_SERVICE_TYPE = 'qdrant'
 DEV_QDRANT_CONTAINER_NAME = 'qdrant'
+
+DEV_MILVUS_IMAGE = 'milvus'
+DEV_MILVUS_SERVICE_TYPE = 'milvus'
+DEV_MILVUS_CONTAINER_NAME = 'milvus'
 
 DAPR_SUPPORTED_STATESTORE_DEV_SERVICE_LIST = ["postgres", "redis"]
 DAPR_SUPPORTED_PUBSUB_DEV_SERVICE_LIST = ["kafka", "redis"]
